@@ -1,6 +1,6 @@
 ---
 name: PRune
-description: Normalize PR descriptions to paragraph style
+description: Normalize PR descriptions to paragraph style, preserving technical reports
 
 runs:
   using: composite
@@ -18,41 +18,54 @@ runs:
           }
 
           const summaryMatch = body.match(/##\s*Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
-          const testingMatch = body.match(/##\s*Testing\s*\n([\s\S]*?)(?=\n##|$)/i);
 
           if (!summaryMatch) {
             core.info('No ## Summary section found. Skipping.');
             return;
           }
 
-          const bullets = summaryMatch[1]
-            .split(/\r?\n/)
-            .map(l => l.replace(/^[-*]\s*/, '').replace(/^#+\s*/, '').trim())
-            .filter(Boolean);
+          const summaryContent = summaryMatch[1].trim();
 
-          function wrapTech(text) {
-            text = text.replace(
-              /(?<!`)(\b[\w.-]+\.(yml|rs|toml|md|json|sh|ts|js|py)\b)(?!`)/g,
-              '`$1`'
-            );
-            text = text.replace(/(?<!`)(\-\-[\w-]+)/g, '`$1`');
-            text = text.replace(/\(([^)]+\/[^)]+)\)/g, (_, inner) => {
-              const wrapped = inner.split('/').map(t => '`' + t.trim() + '`').join('/');
-              return '(' + wrapped + ')';
-            });
-            text = text.replace(/'([^']+)'/g, '`$1`');
-            return text;
+          // Check if content is a technical report (starts with paragraph style)
+          const isTechnicalReport = /^(It\s+has\s+been\s+|A\s+|The\s+)/i.test(summaryContent);
+
+          let normalizedSummary;
+
+          if (isTechnicalReport) {
+            // Preserve technical report format, just clean up whitespace
+            normalizedSummary = summaryContent.replace(/\s+/g, ' ').trim();
+          } else {
+            // Convert bullet points to paragraph
+            const bullets = summaryContent
+              .split(/\r?\n/)
+              .map(l => l.replace(/^[-*]\s*/, '').replace(/^#+\s*/, '').trim())
+              .filter(Boolean);
+
+            function wrapTech(text) {
+              text = text.replace(
+                /(?<!`)(\b[\w.-]+\.(yml|rs|toml|md|json|sh|ts|js|py)\b)(?!`)/g,
+                '`$1`'
+              );
+              text = text.replace(/(?<!`)(\-\-[\w-]+)/g, '`$1`');
+              text = text.replace(/\(([^)]+\/[^)]+)\)/g, (_, inner) => {
+                const wrapped = inner.split('/').map(t => '`' + t.trim() + '`').join('/');
+                return '(' + wrapped + ')';
+              });
+              text = text.replace(/'([^']+)'/g, '`$1`');
+              return text;
+            }
+
+            normalizedSummary = bullets.map(b => wrapTech(b.endsWith('.') ? b : b + '.')).join(' ');
           }
 
-          const summarySentence = bullets.map(b => wrapTech(b.endsWith('.') ? b : b + '.')).join(' ');
-
+          // Check for existing ## Testing section
+          const testingMatch = body.match(/##\s*Testing\s*\n([\s\S]*?)(?=\n##|$)/i);
           const testingLines = testingMatch ? testingMatch[1].split(/\r?\n/).filter(Boolean) : [];
           const testingSentence = testingLines.length
-            ? testingLines.map(l => wrapTech(l.endsWith('.') ? l : l + '.')).join(' ')
+            ? testingLines.map(l => l.endsWith('.') ? l : l + '.').join(' ')
             : 'Pre-commit (`fmt`/`clippy`/`check`/`yaml`) covered the changes.';
 
-          const botCommands = '\n<details>\n<summary>Available Bot Commands</summary>\n\n**Cancel Runs:**\n- `/cancel-runs`\n- `/cancel-runs help`\n\n**Rust Auto-Fix:**\n- `/rust-fix fmt`\n- `/rust-fix clippy`\n- `/rust-fix all`\n\n</details>';
-          const newBody = summarySentence + ' ' + testingSentence + botCommands;
+          const newBody = normalizedSummary + ' ' + testingSentence;
 
           await github.rest.pulls.update({
             owner: context.repo.owner,
