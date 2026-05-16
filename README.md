@@ -45,6 +45,9 @@ jobs:
 
 ## Compare
 https://github.com/owner/repo/compare/abc1234...def5678
+
+---
+<img src="https://raw.githubusercontent.com/libnudget/bot/main/assets/avatar.png" width="16" alt=""> `libnudget/prune@v1`
 ```
 
 ## License

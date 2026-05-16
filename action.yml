@@ -39,6 +39,9 @@ runs:
             '',
             '## Compare',
             compareUrl,
+            '',
+            '---',
+            '<img src="https://raw.githubusercontent.com/libnudget/bot/main/assets/avatar.png" width="16" alt=""> `libnudget/prune@v1`',
           ].join('\n');
 
           await github.rest.pulls.update({
