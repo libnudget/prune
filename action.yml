@@ -1,71 +1,45 @@
 ---
 name: PRune
-description: Normalize PR descriptions to paragraph style, preserving technical reports
+description: Replace PR descriptions with before/after SHA and changed files
 
 runs:
   using: composite
   steps:
-    - name: Normalize description
+    - name: Write description
       uses: actions/github-script@v7
       with:
         script: |
           const pr = context.payload.pull_request;
-          const body = pr.body || '';
+          const short = sha => sha.slice(0, 7);
+          const compareUrl = `${context.payload.repository.html_url}/compare/${pr.base.sha}...${pr.head.sha}`;
 
-          if (!/##\s*Summary/i.test(body)) {
-            core.info('No ## Summary section found. Skipping.');
-            return;
+          const files = await github.paginate(github.rest.pulls.listFiles, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: pr.number,
+            per_page: 100,
+          });
+
+          const changedFiles = files
+            .slice(0, 20)
+            .map(file => `- \`${file.filename}\` ${file.status} (+${file.additions}/-${file.deletions})`);
+          if (files.length > 20) {
+            changedFiles.push(`- ${files.length - 20} more files`);
           }
 
-          const summaryMatch = body.match(/##\s*Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
-
-          if (!summaryMatch) {
-            core.info('No ## Summary section found. Skipping.');
-            return;
-          }
-
-          const summaryContent = summaryMatch[1].trim();
-
-          // Check if content is a technical report (starts with paragraph style)
-          const isTechnicalReport = /^(It\s+has\s+been\s+|A\s+|The\s+)/i.test(summaryContent);
-
-          let normalizedSummary;
-
-          if (isTechnicalReport) {
-            // Preserve technical report format, just clean up whitespace
-            normalizedSummary = summaryContent.replace(/\s+/g, ' ').trim();
-          } else {
-            // Convert bullet points to paragraph
-            const bullets = summaryContent
-              .split(/\r?\n/)
-              .map(l => l.replace(/^[-*]\s*/, '').replace(/^#+\s*/, '').trim())
-              .filter(Boolean);
-
-            function wrapTech(text) {
-              text = text.replace(
-                /(?<!`)(\b[\w.-]+\.(yml|rs|toml|md|json|sh|ts|js|py)\b)(?!`)/g,
-                '`$1`'
-              );
-              text = text.replace(/(?<!`)(\-\-[\w-]+)/g, '`$1`');
-              text = text.replace(/\(([^)]+\/[^)]+)\)/g, (_, inner) => {
-                const wrapped = inner.split('/').map(t => '`' + t.trim() + '`').join('/');
-                return '(' + wrapped + ')';
-              });
-              text = text.replace(/'([^']+)'/g, '`$1`');
-              return text;
-            }
-
-            normalizedSummary = bullets.map(b => wrapTech(b.endsWith('.') ? b : b + '.')).join(' ');
-          }
-
-          // Check for existing ## Testing section
-          const testingMatch = body.match(/##\s*Testing\s*\n([\s\S]*?)(?=\n##|$)/i);
-          const testingLines = testingMatch ? testingMatch[1].split(/\r?\n/).filter(Boolean) : [];
-          const testingSentence = testingLines.length
-            ? testingLines.map(l => l.endsWith('.') ? l : l + '.').join(' ')
-            : 'Pre-commit (`fmt`/`clippy`/`check`/`yaml`) covered the changes.';
-
-          const newBody = normalizedSummary + ' ' + testingSentence;
+          const newBody = [
+            '## Before',
+            `\`${pr.base.ref}\` at \`${short(pr.base.sha)}\``,
+            '',
+            '## After',
+            `\`${pr.head.ref}\` at \`${short(pr.head.sha)}\``,
+            '',
+            '## Changed',
+            changedFiles.length ? changedFiles.join('\n') : '- No file changes reported',
+            '',
+            '## Compare',
+            compareUrl,
+          ].join('\n');
 
           await github.rest.pulls.update({
             owner: context.repo.owner,
@@ -74,4 +48,4 @@ runs:
             body: newBody,
           });
 
-          core.info('PR #' + pr.number + ' normalized');
+          core.info('PR #' + pr.number + ' description updated');

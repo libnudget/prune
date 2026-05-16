@@ -1,12 +1,13 @@
 # PRune
 
-Normalize PR descriptions to paragraph style.
+Write PR descriptions from the actual PR diff.
 
 ## What it does
 
-- Converts bullet points in `## Summary` to sentences
-- Wraps file names in backticks (`action.yml`, `Cargo.toml`)
-- Adds available bot commands
+- Shows the base branch SHA before the PR
+- Shows the head branch SHA after the PR
+- Lists changed files with status and line counts
+- Links to the GitHub compare view
 
 ## Trigger
 
@@ -30,33 +31,20 @@ jobs:
 
 ## Example
 
-**Before:**
+**Output:**
 ```
-## Summary
-- add new feature
-- fix bug in utils
+## Before
+`main` at `abc1234`
 
-## Testing
-- tested locally
-```
+## After
+`fix/example` at `def5678`
 
-**After:**
-```
-add new feature. fix bug in utils. Pre-commit covered the changes.
+## Changed
+- `action.yml` modified (+12/-4)
+- `README.md` modified (+8/-20)
 
-<details>
-<summary>Available Bot Commands</summary>
-
-**Cancel Runs:**
-- `/cancel-runs`
-- `/cancel-runs help`
-
-**Rust Auto-Fix:**
-- `/rust-fix fmt`
-- `/rust-fix clippy`
-- `/rust-fix all`
-
-</details>
+## Compare
+https://github.com/owner/repo/compare/abc1234...def5678
 ```
 
 ## License
