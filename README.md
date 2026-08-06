@@ -1,5 +1,7 @@
 # PRune
 
+[![Release](https://img.shields.io/github/v/release/libnudget/prune?logo=github&label=latest)](https://github.com/libnudget/prune/releases)
+
 Write PR descriptions from the actual PR diff.
 
 ## What it does
