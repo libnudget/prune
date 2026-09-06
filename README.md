@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Coccinella-Labs/prune/main/.github/assets/thumbnail.png" alt="prune" width="100%">
+</p>
+
 # PRune
 
 [![Release](https://img.shields.io/github/v/release/libnudget/prune?logo=github&label=latest)](https://github.com/libnudget/prune/releases)
